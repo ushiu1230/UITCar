@@ -166,9 +166,9 @@ def track_lanes_initialize(binary_warped):
     if len(rightx) != 0:
         right_fit  = np.polyfit(righty, rightx, 2)
     if np.sum(left_fit) == np.sum(right_fit):
-        if np.sum(left_fit) >= 300:
+        if np.sum(left_fit) >= 305:
             left_fit = np.array([])
-        if np.sum(right_fit) <= 300:
+        if np.sum(right_fit) <= 305:
             right_fit = np.array([])
     return left_fit, right_fit
 
@@ -209,7 +209,7 @@ def get_point_in_lane(image):
 def find_center_line_for_missing_one_line(image,left_fit,right_fit):
     global center_fit_last
     ploty = np.linspace(0, image.shape[0]-1, image.shape[0])
-    point_in_lane = 150,300
+    point_in_lane = 150,305
     #print('point_in_lane:',point_in_lane)
     # cv2.circle(image,(point_in_lane[1],point_in_lane[0]),1,(0,0,255),8)
     avaiable_fit =  left_fit
@@ -340,7 +340,7 @@ def fix_laneline(left_fit, right_fit, dstx):
     return left_fit, right_fit
 
 def errorAngle(center_line,left_fit, right_fit):
-    carPosx , carPosy = 300, 150
+    carPosx , carPosy = 305, 150
     angle = 0
     dstx, dsty = find_point_center(center_line)
     left_fit, right_fit = fix_laneline(left_fit, right_fit, dstx)
@@ -354,10 +354,10 @@ def errorAngle(center_line,left_fit, right_fit):
     #print('toa do center lane',dstx, dsty)
     #print('left: ', leftlane,'\tright: ' , rightlane)
     centerlane = (leftlane + rightlane)/2
-    centerlane = (300-centerlane)
+    centerlane = (305-centerlane)
     #print('center\t', centerlane)
     if leftlane == rightlane and rightlane != 0:
-        if leftlane <= 300:
+        if leftlane <= 305:
             angle = 10
         else:
             angle = -10
