@@ -95,18 +95,13 @@ if __name__ == '__main__':
     unity_api = Unity(args.port)
     unity_api.connect()
 
-    kp = 0.7
-    ki = 0
-    kd = 0.1
-    pid = PID(kp,ki,kd, setpoint= 0)
-
-    pid.output_limits = (-15,15)
     while True:
         start_time = time.time()
         img_full = final_img()
 
         speedcal, angcal  = processing(img_full)
-        angcal = pid(-(angcal))
+        angcal = int(np.clip(angcal+1.5,-25,25))
+        speedcal = int(np.clip(speedcal,-100,100))
         speedcal = stdev_list(speed_list,speedcal)
         angcal = stdev_list(ang_list,angcal)
         print('Speed: ', speedcal, "\tAngle: ",angcal)
