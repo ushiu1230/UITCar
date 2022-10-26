@@ -100,8 +100,6 @@ if __name__ == '__main__':
         img_full = final_img()
 
         speedcal, angcal  = processing(img_full)
-        angcal = int(np.clip(angcal+1.5,-25,25))
-        speedcal = int(np.clip(speedcal,-100,100))
         speedcal = stdev_list(speed_list,speedcal)
         angcal = stdev_list(ang_list,angcal)
         print('Speed: ', speedcal, "\tAngle: ",angcal)

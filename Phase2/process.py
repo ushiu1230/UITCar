@@ -396,22 +396,23 @@ def errorAngle(center_line,left_fit, right_fit):
 
 def calcul_speed(steer_angle):
     max_speed = 20
-    max_angle = 25
+    max_angle = 30
     if (steer_angle >= 1 and steer_angle < 4)  or  (steer_angle > -4 and  steer_angle <= -1):
+        max_speed*=0.8
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
             return max_speed + (max_speed/max_angle)*steer_angle 
     
     elif (steer_angle >= 4 and steer_angle < 8) or  (steer_angle > -8 and  steer_angle <= -4):
-        max_speed*=0.8
+        max_speed*=0.9
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
             return max_speed + (max_speed/max_angle)*steer_angle
 
     elif (steer_angle >= 8 and steer_angle < 12) or  (steer_angle > -12 and  steer_angle <= -8):
-        max_speed*=0.5
+        max_speed*=0.7
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
@@ -427,13 +428,19 @@ def calcul_speed(steer_angle):
 
     
     elif (steer_angle >= 17 and steer_angle < 26) or  (steer_angle > -26 and  steer_angle <= -17):
-        max_speed*=0.02
+        max_speed*=0.2
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
             return max_speed + (max_speed/max_angle)*steer_angle
 
-    return max_speed*0.5
+    elif abs(steer_angle >= 26):
+        max_speed*=0.2
+        if steer_angle > 0:
+            return max_speed - (max_speed/max_angle)*steer_angle
+        else:
+            return max_speed + (max_speed/max_angle)*steer_angle
+    return max_speed
 
 
 ################## find line avaiable ######################
@@ -456,7 +463,7 @@ ki = 0
 kd = 0.1
 pid = PID(kp,ki,kd, setpoint= 0)
 
-pid.output_limits = (-25,25)
+pid.output_limits = (-30,30)
 
 def get_speed_angle(center_line,left_fit, right_fit): 
 # calculate speed and angle
