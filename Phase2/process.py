@@ -166,9 +166,9 @@ def track_lanes_initialize(binary_warped):
     if len(rightx) != 0:
         right_fit  = np.polyfit(righty, rightx, 2)
     if np.sum(left_fit) == np.sum(right_fit):
-        if np.sum(left_fit) >= 305:
+        if np.sum(left_fit) >= 300:
             left_fit = np.array([])
-        if np.sum(right_fit) <= 305:
+        if np.sum(right_fit) <= 300:
             right_fit = np.array([])
     return left_fit, right_fit
 
@@ -209,7 +209,7 @@ def get_point_in_lane(image):
 def find_center_line_for_missing_one_line(image,left_fit,right_fit):
     global center_fit_last
     ploty = np.linspace(0, image.shape[0]-1, image.shape[0])
-    point_in_lane = 150,305
+    point_in_lane = 150,300
     #print('point_in_lane:',point_in_lane)
     # cv2.circle(image,(point_in_lane[1],point_in_lane[0]),1,(0,0,255),8)
     avaiable_fit =  left_fit
@@ -340,7 +340,7 @@ def fix_laneline(left_fit, right_fit, dstx):
     return left_fit, right_fit
 
 def errorAngle(center_line,left_fit, right_fit):
-    carPosx , carPosy = 305, 150
+    carPosx , carPosy = 300, 150
     angle = 0
     dstx, dsty = find_point_center(center_line)
     left_fit, right_fit = fix_laneline(left_fit, right_fit, dstx)
@@ -354,10 +354,10 @@ def errorAngle(center_line,left_fit, right_fit):
     #print('toa do center lane',dstx, dsty)
     #print('left: ', leftlane,'\tright: ' , rightlane)
     centerlane = (leftlane + rightlane)/2
-    centerlane = (305-centerlane)
+    centerlane = (300-centerlane)
     #print('center\t', centerlane)
     if leftlane == rightlane and rightlane != 0:
-        if leftlane <= 305:
+        if leftlane <= 300:
             angle = 10
         else:
             angle = -10
@@ -396,22 +396,23 @@ def errorAngle(center_line,left_fit, right_fit):
 
 def calcul_speed(steer_angle):
     max_speed = 20
-    max_angle = 25
+    max_angle = 30
     if (steer_angle >= 1 and steer_angle < 4)  or  (steer_angle > -4 and  steer_angle <= -1):
+        max_speed*=0.8
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
             return max_speed + (max_speed/max_angle)*steer_angle 
     
     elif (steer_angle >= 4 and steer_angle < 8) or  (steer_angle > -8 and  steer_angle <= -4):
-        max_speed*=0.8
+        max_speed*=0.9
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
             return max_speed + (max_speed/max_angle)*steer_angle
 
     elif (steer_angle >= 8 and steer_angle < 12) or  (steer_angle > -12 and  steer_angle <= -8):
-        max_speed*=0.5
+        max_speed*=0.7
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
@@ -427,13 +428,19 @@ def calcul_speed(steer_angle):
 
     
     elif (steer_angle >= 17 and steer_angle < 26) or  (steer_angle > -26 and  steer_angle <= -17):
-        max_speed*=0.02
+        max_speed*=0.2
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
             return max_speed + (max_speed/max_angle)*steer_angle
 
-    return max_speed*0.5
+    elif abs(steer_angle >= 26):
+        max_speed*=0.2
+        if steer_angle > 0:
+            return max_speed - (max_speed/max_angle)*steer_angle
+        else:
+            return max_speed + (max_speed/max_angle)*steer_angle
+    return max_speed
 
 
 ################## find line avaiable ######################
@@ -456,7 +463,7 @@ ki = 0
 kd = 0.1
 pid = PID(kp,ki,kd, setpoint= 0)
 
-pid.output_limits = (-25,25)
+pid.output_limits = (-30,30)
 
 def get_speed_angle(center_line,left_fit, right_fit): 
 # calculate speed and angle
