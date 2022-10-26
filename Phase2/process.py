@@ -398,6 +398,7 @@ def calcul_speed(steer_angle):
     max_speed = 20
     max_angle = 30
     if (steer_angle >= 1 and steer_angle < 4)  or  (steer_angle > -4 and  steer_angle <= -1):
+        max_speed*=0.8
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
@@ -419,7 +420,7 @@ def calcul_speed(steer_angle):
 
 
     elif (steer_angle >= 12 and steer_angle < 17) or  (steer_angle > -17 and  steer_angle <= -12):
-        max_speed*=0.5
+        max_speed*=0.3
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
@@ -427,19 +428,19 @@ def calcul_speed(steer_angle):
 
     
     elif (steer_angle >= 17 and steer_angle < 26) or  (steer_angle > -26 and  steer_angle <= -17):
-        max_speed*=0.3
+        max_speed*=0.2
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
             return max_speed + (max_speed/max_angle)*steer_angle
 
     elif abs(steer_angle >= 26):
-        max_speed*=0.1
+        max_speed*=0.2
         if steer_angle > 0:
             return max_speed - (max_speed/max_angle)*steer_angle
         else:
             return max_speed + (max_speed/max_angle)*steer_angle
-    return max_speed*0.2
+    return max_speed
 
 
 ################## find line avaiable ######################
