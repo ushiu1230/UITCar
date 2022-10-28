@@ -2,9 +2,27 @@ from math import sqrt
 import numpy as np
 import cv2
 import math
-from simple_pid import PID
+import statistics
+import time
+from signboard_detect import *
 
 center_fit_last = np.array([0,0,0])
+global_left_fit = np.array([0,0,0])
+global_right_fit = np.array([0,0,0])
+
+speed_list = [0]*10
+ang_list = [0]*10
+time_list = [0]*10
+turn = 0
+start_time = time.time()
+
+def stdev_list(list, point):
+    list.append(point)
+    del list[:-10]
+    #print(list)
+    avg = sum(list)/len(list)
+    avg += statistics.stdev(list)
+    return avg
 
 def rgb_select(img, thresh=(0, 255)):
     R = img[:,:,2] 
@@ -55,8 +73,8 @@ def warp_image(img):
     ## my source
     source_points = np.float32([
     [0, y],
-    [x*(0.21), (0.7)*y],
-    [x*(0.79), (0.7)*y],
+    [x*(0.17), (0.77)*y],
+    [x*(0.83), (0.77)*y],
     [x, y]
     ])
     
@@ -122,7 +140,7 @@ def track_lanes_initialize(binary_warped):
     minpix = 15
     # Create empty lists to receive left and right lane pixel indices
     left_lane_inds = []
-    right_lane_inds = []  
+    right_lane_inds = []
     for window in range(nwindows):
         # Identify window boundaries in x and y (and right and left)
         win_y_low = int(binary_warped.shape[0] - (window+1)*window_height)
@@ -165,11 +183,6 @@ def track_lanes_initialize(binary_warped):
         left_fit  = np.polyfit(lefty, leftx, 2)
     if len(rightx) != 0:
         right_fit  = np.polyfit(righty, rightx, 2)
-    if np.sum(left_fit) == np.sum(right_fit):
-        if np.sum(left_fit) >= 305:
-            left_fit = np.array([])
-        if np.sum(right_fit) <= 305:
-            right_fit = np.array([])
     return left_fit, right_fit
 
 def check_fit_duplication(left_fit, right_fit):
@@ -206,6 +219,63 @@ def get_point_in_lane(image):
     
     return 0,0
 
+def update_fit_value(center_fit, left_fit, right_fit):
+    global center_fit_last
+    global global_left_fit
+    global global_right_fit
+
+    center_last_sum = np.sum(center_fit_last)
+    left_last_sum = np.sum(global_left_fit)
+    right_last_sum = np.sum(global_right_fit)
+
+    center_sum = np.sum(center_fit)
+    left_fit_sum = np.sum(left_fit)
+    right_fit_sum = np.sum(right_fit)
+
+    if left_last_sum == 0 and right_last_sum == 0:
+        global_right_fit = right_fit
+        global_left_fit = left_fit
+    else:
+        if left_fit_sum == 0:
+            if right_fit_sum == 0:
+                return center_fit, left_fit, right_fit
+            else:
+                center_fit[0] = (center_fit[0] + right_fit[0])
+                center_fit[1] = (center_fit[1] + right_fit[1])
+                global_right_fit = right_fit
+                center_fit_last = center_fit
+                #print('offset_right',type(offset_right))
+        else:
+            if right_fit_sum == 0:
+                center_fit[0] = (center_fit[0] + left_fit[0])
+                center_fit[1] = (center_fit[1] + left_fit[1])
+                global_left_fit = left_fit
+                center_fit_last = center_fit
+                #print('offset_left',type(offset_left))
+            else:
+                global_right_fit = right_fit
+                global_left_fit = left_fit
+                center_fit_last = center_fit
+
+    if abs(center_last_sum - center_sum) > 30 and center_last_sum != 0:
+        if left_fit_sum == 0 and right_fit_sum == 0:
+            center_fit_last = center_fit
+            global_right_fit = right_fit
+            global_left_fit = left_fit
+            #print('reset center')
+        else:
+            center_fit = center_fit_last
+            #print('not update')
+    else:
+        center_fit_last = center_fit
+        global_right_fit = right_fit
+        global_left_fit = left_fit
+        #print('update')
+
+    #print(np.sum(right_fit - left_fit))
+
+    return center_fit, left_fit, right_fit
+
 def find_center_line_for_missing_one_line(image,left_fit,right_fit):
     global center_fit_last
     ploty = np.linspace(0, image.shape[0]-1, image.shape[0])
@@ -223,7 +293,7 @@ def find_center_line_for_missing_one_line(image,left_fit,right_fit):
     val = point_in_lane[1] - get_val(point_in_lane[0],avaiable_fit)
     #print('val: ',val)
     if val > 0:
-        print("missing right line")
+        #print("missing right line")
         #left avaiable
         left_fitx = get_val(ploty,avaiable_fit)
         # max image.shape[1]*0.25+1, min image.shape[1]-image.shape[1]*0.3-1
@@ -231,32 +301,31 @@ def find_center_line_for_missing_one_line(image,left_fit,right_fit):
         left_fit = avaiable_fit
         right_fit = np.array([])
     else:
-        print("missing left line")
+        #print("missing left line")
         #right avaiable
         right_fitx = get_val(ploty,avaiable_fit)
         center_x = np.clip(right_fitx-100,image.shape[1]*0.25+1,image.shape[1]-image.shape[1]*0.25-1)
         right_fit = avaiable_fit
         left_fit = np.array([])
     center_fit = np.polyfit(ploty, center_x, 2)
-    if abs(np.sum(center_fit_last) - np.sum(center_fit)) < 30 or np.sum(center_fit_last) == 0:
-        center_fit = np.polyfit(ploty, center_x, 2)
-    else:
-        center_fit = center_fit_last        
+    #center_fit, left_fit, right_fit = update_fit_value(center_fit, left_fit, right_fit)
     return center_fit, left_fit, right_fit
 
 def find_center_line_and_update_fit(image,left_fit,right_fit):
     global center_fit_last
-    print('center_last', np.sum(center_fit_last))
+    global global_left_fit
+    global global_right_fit
+    #print('center_last', np.sum(center_fit_last))
     left_fit, right_fit = fix_laneline(left_fit, right_fit, np.sum(center_fit_last))
     if np.sum(left_fit) == 0  and np.sum(right_fit) == 0: # missing 2 line:
         center_fit =  np.array([0,0,image.shape[1]/2])
         left_fit_update = np.array([])
         right_fit_update = np.array([])
-        center_fit_last = center_fit
+        center_fit, left_fit_update, right_fit_update = update_fit_value(center_fit, left_fit_update, right_fit_update)
         return center_fit, left_fit_update, right_fit_update
     if np.sum(left_fit) == 0 or np.sum(right_fit) == 0: #missing 1 line
         center_fit, left_fit_update, right_fit_update = find_center_line_for_missing_one_line(image,left_fit,right_fit)
-        center_fit_last = center_fit
+        center_fit, left_fit_update, right_fit_update = update_fit_value(center_fit, left_fit_update, right_fit_update)
         return center_fit, left_fit_update, right_fit_update
     # none missing line
     ploty = np.linspace(0, image.shape[0]-1, image.shape[0])
@@ -264,13 +333,7 @@ def find_center_line_and_update_fit(image,left_fit,right_fit):
     rightx = get_val(ploty, right_fit)
     center_x = (leftx+rightx)/2
     center_fit = np.polyfit(ploty, center_x, 2)
-    if abs(np.sum(center_fit_last) - np.sum(center_fit)) < 30 or np.sum(center_fit_last) == 0:
-        center_fit_last = center_fit
-    else:
-        if int(np.sum(left_fit)) < int(np.sum(right_fit)) and len(left_fit) != 0:
-            center_fit_last = center_fit
-        else:
-            center_fit = center_fit_last
+    center_fit, left_fit, right_fit = update_fit_value(center_fit, left_fit, right_fit)
     return center_fit, left_fit, right_fit
 
 def lane_fill_poly(binary_warped,undist,center_fit,left_fit,right_fit, inverse_perspective_transform):
@@ -306,7 +369,7 @@ def lane_fill_poly(binary_warped,undist,center_fit,left_fit,right_fit, inverse_p
 
 ############################## calcul steer angle #############################
 def find_point_center(center_line):
-    roi = int(center_line.shape[0]*(7/9))+10
+    roi = int(center_line.shape[0]*(0.8))+10
     for y in range(roi,center_line.shape[0]):
         for x in range(center_line.shape[1]):
             if center_line[y][x][2] == 255:
@@ -339,136 +402,195 @@ def fix_laneline(left_fit, right_fit, dstx):
     
     return left_fit, right_fit
 
-def errorAngle(center_line,left_fit, right_fit):
+def func_turn(turn,state):
+    print('turn func')
+    if state == 1:
+        if turn == 2:
+            return -2
+        elif turn == 3:
+            return 2
+        return 0
+    elif state == 2:
+        return -25
+    elif state == 3:
+        return 25
+    elif state == 4:
+        #cam phai
+        if turn == 1:
+            return -25
+        elif turn == 2:
+            return 2
+    elif state == 3:
+        #cam trai
+        if turn == 1:
+            return 25
+        elif turn == 3:
+            return 2
+    elif state == 6:
+        if turn == 2:
+            return 25
+        elif turn == 3:
+            return -25
+    print('ko vo state')
+    return 0
+
+def errorAngle1(center_line, state):
+    global global_left_fit
+    global global_right_fit
+    global turn
     carPosx , carPosy = 305, 150
     angle = 0
     dstx, dsty = find_point_center(center_line)
-    left_fit, right_fit = fix_laneline(left_fit, right_fit, dstx)
-    leftlane = (np.sum(left_fit))
-    rightlane = (np.sum(right_fit))
-    #print(leftlane, type(rightlane))
+    #left_fit, right_fit = fix_laneline(left_fit, right_fit, dstx)
+    leftlane = np.sum(global_left_fit)
+    rightlane = np.sum(global_right_fit)
+    #print(leftlane, rightlane,)
     #leftlane, rightlane = fix_laneline(float(leftlane), float(rightlane))
     dx = dstx - carPosx
     pi = math.acos(-1.0)
     dy = carPosy - dsty
-    #print('toa do center lane',dstx, dsty)
-    #print('left: ', leftlane,'\tright: ' , rightlane)
+    print('turn:\t',turn)
+    print('state:\t',state)
+    print('left: ', leftlane,'\tright: ' , rightlane)
     centerlane = (leftlane + rightlane)/2
-    centerlane = (305-centerlane)
-    #print('center\t', centerlane)
-    if leftlane == rightlane and rightlane != 0:
-        if leftlane <= 305:
-            angle = 10
-        else:
-            angle = -10
-    elif leftlane < rightlane:
-        if centerlane >= 0:
-            if abs(centerlane) <= 5:
-                angle = 0 
-            if abs(centerlane) <= 20:
-                angle = -sqrt(abs(centerlane))
-            elif abs(centerlane) <= 50:
-                angle = -abs(centerlane)/2
-                if angle < -30:
-                    angle = (math.atan(dx / dy) * 180 / pi)/2.8
+    centerlane = (carPosx-centerlane)
+    #print('center\t', (leftlane + (rightlane-leftlane)/2))
+    #print('center', centerlane)
+    if turn != 0 and state != 0:
+        print('xu ly sign')
+        angle = func_turn(turn,state)
+        if rightlane != 0 and leftlane != 0:
+            turn = 0
+            state = 0
+        return angle
+    if rightlane == 0 and leftlane == 0:
+        angle = 0
+    elif rightlane != 0 and leftlane != 0:
+        if rightlane - leftlane < 590:
+            if centerlane > 0:
+                if centerlane > 10:
+                    if centerlane > 20:
+                        if centerlane > 40:
+                            angle = -12
+                        else:
+                            angle = -8
+                    else:
+                        angle = -5
+                else:
+                    angle = -3
             else:
-                angle = (math.atan(dx / dy) * 180 / pi)/2.8
+                centerlane_abs = abs(centerlane)
+                if centerlane_abs > 10:
+                    if centerlane_abs > 20:
+                        if centerlane_abs > 40:
+                            angle = 12
+                        else:
+                            angle = 8
+                    else:
+                        angle = 5
+                else:
+                    angle = 3
         else:
-            if abs(centerlane) <= 5:
-                angle = 0
-            if abs(centerlane) <= 20:
-                angle = (sqrt(abs(centerlane)))
-            elif abs(centerlane) <= 50:
-                angle = (abs(centerlane)/2)
-                if angle > 30:
-                    angle = (math.atan(dx / dy) * 180 / pi)/2.8
-            else:
-                angle = (math.atan(dx / dy) * 180 / pi)/2.8
+            print('Nga tu hoac ba chu T\n')
+            turn = 1
+            angle = func_turn(turn,state)
+            return angle
     else:
-        if abs(centerlane) <= 20:
-            angle = -(sqrt(abs(centerlane)))
-        elif abs(centerlane) <= 50:
-            angle = -(abs(centerlane)/2)
+        if leftlane != 0:
+            if leftlane > 220:
+                print('cua phai')
+                if leftlane < 235:
+                    if leftlane > 100:
+                        angle = 7
+                    else:
+                        angle = -7
+                else:
+                    if leftlane < 250:
+                        angle = 20
+                    else:
+                        angle = 25
+            elif leftlane >= 145 and leftlane <= 210:
+                print('nga ba phai')
+                turn = 2
+                angle = func_turn(turn,state)
+                return angle
+        elif rightlane != 0:
+            if rightlane <= 505 and rightlane >= 400:
+                print('nga ba trai')
+                turn = 3
+                angle = func_turn(turn,state)
+                print(angle)
+                return angle
+            elif rightlane < 700:
+                print('cua trai')
+                if rightlane > 475:
+                    if rightlane > 100:
+                        angle = -7
+                    else:
+                        angle = 7
+                else:
+                    if rightlane > 400:
+                        angle = -20
+                    else:
+                        angle = -25
+    return angle
+    
+def errorAngle(center_line,left_fit, right_fit):
+    carPosx , carPosy = 305, 150
+    dstx, dsty = find_point_center(center_line)
+    print('dstx, dsty',dstx, dsty)
+    if dstx == carPosx:
+        return 0
+    if dsty == carPosy:
+        if dstx < carPosx:
+            return -30
         else:
-            angle = (math.atan(dx / dy) * 180 / pi)/2.8
-    #print('angle: ',angle)
+            return 30
+    pi = math.acos(-1.0)
+    dx = dstx - carPosx
+    dy = carPosy - dsty
+    print(dx, dy)
+
+    if dx < 0:
+        angle = (math.atan(-dx / dy) * -180 / pi)
+        if abs(angle) > 4:
+            if abs(angle) > 10:
+                if abs(angle) > 18:
+                    if abs(angle) > 23:
+                        angle = 30
+                angle = angle/9
+            angle = angle/3
+    else:
+        angle = (math.atan(dx / dy) * 180 / pi)
+        if angle > 4:
+            if angle > 10:
+                if angle > 18:
+                    if angle > 23:
+                        angle = 30
+                angle = angle/9
+            angle = angle/3
     return angle
 
+
 def calcul_speed(steer_angle):
-    max_speed = 20
-    max_angle = 30
-    if (steer_angle >= 1 and steer_angle < 4)  or  (steer_angle > -4 and  steer_angle <= -1):
-        max_speed*=0.8
-        if steer_angle > 0:
-            return max_speed - (max_speed/max_angle)*steer_angle
-        else:
-            return max_speed + (max_speed/max_angle)*steer_angle 
-    
-    elif (steer_angle >= 4 and steer_angle < 8) or  (steer_angle > -8 and  steer_angle <= -4):
-        max_speed*=0.9
-        if steer_angle > 0:
-            return max_speed - (max_speed/max_angle)*steer_angle
-        else:
-            return max_speed + (max_speed/max_angle)*steer_angle
+    max_speed = 22
+    abs_steering = abs(steer_angle)
+    if abs_steering < 2:
+        return max_speed
+    elif abs_steering < 8:
+        return max_speed*0.9
+    elif abs_steering < 15:
+        return max_speed*0.7
+    elif abs_steering < 20:
+        return max_speed*0.5
+    elif abs_steering < 40:
+        return max_speed*0.3
+    else:
+        return max_speed*0.1
 
-    elif (steer_angle >= 8 and steer_angle < 12) or  (steer_angle > -12 and  steer_angle <= -8):
-        max_speed*=0.7
-        if steer_angle > 0:
-            return max_speed - (max_speed/max_angle)*steer_angle
-        else:
-            return max_speed + (max_speed/max_angle)*steer_angle
+def get_speed_angle(center_line,state):
 
-
-    elif (steer_angle >= 12 and steer_angle < 17) or  (steer_angle > -17 and  steer_angle <= -12):
-        max_speed*=0.3
-        if steer_angle > 0:
-            return max_speed - (max_speed/max_angle)*steer_angle
-        else:
-            return max_speed + (max_speed/max_angle)*steer_angle
-
-    
-    elif (steer_angle >= 17 and steer_angle < 26) or  (steer_angle > -26 and  steer_angle <= -17):
-        max_speed*=0.2
-        if steer_angle > 0:
-            return max_speed - (max_speed/max_angle)*steer_angle
-        else:
-            return max_speed + (max_speed/max_angle)*steer_angle
-
-    elif abs(steer_angle >= 26):
-        max_speed*=0.2
-        if steer_angle > 0:
-            return max_speed - (max_speed/max_angle)*steer_angle
-        else:
-            return max_speed + (max_speed/max_angle)*steer_angle
-    return max_speed
-
-
-################## find line avaiable ######################
-# def line_processing(image):
-#    binary_image =  binary_pipeline(image)
-#    bird_view, inverse_perspective_transform =  warp_image(binary_image)
-#    left_fit, right_fit = track_lanes_initialize(bird_view)
-#    return left_fit, right_fit,bird_view, inverse_perspective_transform
-################## Draw lane avaiable #######################
-# def draw_lane(image, bird_view, left_fit, right_fit, inverse_perspective_transform):
-#     left_fit, right_fit = check_fit_duplication(left_fit,right_fit)
-#     center_fit, left_fit, right_fit = find_center_line_and_update_fit(image,left_fit,right_fit) # update left, right line
-#     colored_lane, center_line = lane_fill_poly(bird_view,image,center_fit,left_fit,right_fit, inverse_perspective_transform)
-#     cv2.imshow("lane",colored_lane)
-#     return center_line
-
-
-kp = 0.7
-ki = 0
-kd = 0.1
-pid = PID(kp,ki,kd, setpoint= 0)
-
-pid.output_limits = (-30,30)
-
-def get_speed_angle(center_line,left_fit, right_fit): 
-# calculate speed and angle
-   steer_angle =  errorAngle(center_line,left_fit, right_fit)
-   steer_angle_loss = pid(-(steer_angle*0.3))
-   print(steer_angle_loss)
-   speed_current = calcul_speed(steer_angle_loss)
-   return speed_current, steer_angle
+    steer_angle =  errorAngle1(center_line, state)
+    print('angle: ',steer_angle)
+    speed_current = calcul_speed(steer_angle)
+    return speed_current, steer_angle

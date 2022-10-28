@@ -2,6 +2,8 @@ import re
 import numpy as np
 import cv2
 
+state = 0
+
 # red = np.array([0,0,255])
 # green = np.array([0,255,0])
 # blue = np.array([255,0,0])
@@ -9,9 +11,9 @@ import cv2
 # yellow = np.array([0,255,255])
 def detect_sign(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    cv2.imshow("gray",gray)
+    #cv2.imshow("gray",gray)
     gray_blurred = cv2.blur(gray, (3,3))
-    cv2.imshow("b_gray",gray_blurred)
+    #cv2.imshow("b_gray",gray_blurred)
     detected_circles = cv2.HoughCircles(gray_blurred,
             cv2.HOUGH_GRADIENT, 1, 20, param1 = 50,
         param2 = 30, minRadius = 5, maxRadius = 20)
@@ -23,19 +25,28 @@ def detect_sign(img):
             return a,b
     return 0 , 0
 
-def detect_color(img, state):
+def detect_color(img):
+    global state
     x, y = detect_sign(img)
     if (x and y != 0 ):
         b,g,r = img[y,x]
         print(b,g,r)
         if b == 0 and g == 0 and r == 255:
+            #di thang
             state = 1
         elif b == 0 and g == 255 and r == 0:
+            #re trai
             state = 2
         elif b == 255 and g == 0 and r == 0:
+            #re phai
             state = 3
         elif b == 255 and g == 0 and r == 255:
+            #cam phai
             state = 4
         elif b == 0 and g == 255 and r == 255:
+            #cam trai
             state = 5
+        elif b == 255 and g == 0 and r == 178:
+            #cam thang
+            state = 6
     return state
