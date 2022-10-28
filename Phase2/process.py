@@ -420,7 +420,7 @@ def func_turn(turn,state):
             return -25
         elif turn == 2:
             return 2
-    elif state == 3:
+    elif state == 5:
         #cam trai
         if turn == 1:
             return 25

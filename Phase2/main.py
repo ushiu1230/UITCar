@@ -65,8 +65,8 @@ def processing(image):
 
     #edge_img = cv2.cvtColor(binary_image,cv2.COLOR_GRAY2RGB)
     #final_img = cv2.addWeighted(display_img,1.0,edge_img,1.0,0.0)
-    unity_api.show_images(left_image, right_image)
-    cv2.imshow('final_img',final_img)
+    #unity_api.show_images(left_image, right_image)
+    #cv2.imshow('final_img',final_img)
     return float(speed_current), float(steer_angle)
 
 
