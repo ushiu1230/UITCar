@@ -403,35 +403,44 @@ def fix_laneline(left_fit, right_fit, dstx):
     return left_fit, right_fit
 
 def func_turn(turn,state):
-    print('turn func')
+    
+    #1: di thang
     if state == 1:
         if turn == 2:
             return -2
         elif turn == 3:
             return 2
         return 0
+
+    #2: re trai
     elif state == 2:
         return -25
+
+    #3: re phai
     elif state == 3:
         return 25
+
+    #4: cam phai
     elif state == 4:
-        #cam phai
         if turn == 1:
             return -25
         elif turn == 2:
             return 2
+
+    #5: cam trai
     elif state == 5:
-        #cam trai
         if turn == 1:
             return 25
         elif turn == 3:
             return 2
+    #6: cam thang
     elif state == 6:
         if turn == 2:
             return 25
         elif turn == 3:
             return -25
-    print('ko vo state')
+    
+    return 0
     return 0
 
 def errorAngle1(center_line, state):
