@@ -1,1 +1,1 @@
-sudo docker run -it --network="host" -p 11000:11000 --add-host=host.docker.internal:host-gateway --rm uitcar_teamaloc:khoidong python KD.py
+sudo docker run -it --network="host" -p 11000:11000 --add-host=host.docker.internal:host-gateway --rm it_car_22_teamaloc:v2 python ./Phase2/main.py

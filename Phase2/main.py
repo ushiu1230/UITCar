@@ -59,8 +59,8 @@ def processing(image):
     #cv2.imshow("lane",colored_lane)
     #cv2.imshow("bird_view",bird_view)
     state = detect_color(display_img)
-    print(state)
     speed_current, steer_angle = get_speed_angle(center_line,state)
+    print(state)
     #if traffic_sign is None and flag_ts and (steer_angle >= 20 or steer_angle <= -20):
 
     #edge_img = cv2.cvtColor(binary_image,cv2.COLOR_GRAY2RGB)
