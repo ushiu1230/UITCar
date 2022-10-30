@@ -1,8 +1,6 @@
 from turtle import speed
 from unity_utils.unity_utils import Unity
 import cv2
-#from Lane import *
-import numpy as np
 import argparse
 from process import *
 from PIL import Image
@@ -57,8 +55,12 @@ def processing(image):
     #print('center',center_fit)
     colored_lane, center_line = lane_fill_poly(bird_view,edge_img,center_fit,left_fit_update,right_fit_update, inverse_perspective_transform)
     #cv2.imshow("lane",colored_lane)
-    #cv2.imshow("bird_view",bird_view)
+    cv2.imshow("bird_view",bird_view)
     state = detect_color(display_img)
+<<<<<<< HEAD
+=======
+    #print(state)
+>>>>>>> d2c646af2f96ca507a139d418c900aae8613e84a
     speed_current, steer_angle = get_speed_angle(center_line,state)
     print(state)
     #if traffic_sign is None and flag_ts and (steer_angle >= 20 or steer_angle <= -20):
@@ -81,12 +83,18 @@ if __name__ == '__main__':
     state = 0
     while True:
         img_full = final_img()
+        res = []
 
         speedcal, angcal  = processing(img_full)
         speedcal = stdev_list(speed_list,speedcal)
         #angcal = stdev_list(ang_list,angcal)
-        print('Speed: ', speedcal, "\tAngle: ",angcal,'\n')
+        #print('Speed: ', speedcal, "\tAngle: ",angcal,'\n')
         
-        unity_api.set_speed_angle(speedcal, angcal)
+        data = unity_api.set_speed_angle(speedcal, angcal)
+
+        speedcal = speed_control(data['Speed'], speedcal)
+        data = unity_api.set_speed_angle(speedcal, angcal)
+
+        print('Speed: ', data['Speed'], "\tAngle: ",angcal,'\n')
         #print(data)
         finalTime = int(stdev_list(time_list,1/(time.time() - start_time)))

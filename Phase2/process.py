@@ -11,7 +11,6 @@ global_left_fit = np.array([0,0,0])
 global_right_fit = np.array([0,0,0])
 
 speed_list = [0]*10
-ang_list = [0]*10
 time_list = [0]*10
 turn = 0
 start_time = time.time()
@@ -231,45 +230,36 @@ def update_fit_value(center_fit, left_fit, right_fit):
     center_sum = np.sum(center_fit)
     left_fit_sum = np.sum(left_fit)
     right_fit_sum = np.sum(right_fit)
+    global_right_fit = right_fit
+    global_left_fit = left_fit
 
-    if left_last_sum == 0 and right_last_sum == 0:
-        global_right_fit = right_fit
-        global_left_fit = left_fit
-    else:
-        if left_fit_sum == 0:
-            if right_fit_sum == 0:
-                return center_fit, left_fit, right_fit
-            else:
-                center_fit[0] = (center_fit[0] + right_fit[0])
-                center_fit[1] = (center_fit[1] + right_fit[1])
-                global_right_fit = right_fit
-                center_fit_last = center_fit
-                #print('offset_right',type(offset_right))
+
+    if left_fit_sum == 0:
+        if right_fit_sum == 0:
+            return center_fit, left_fit, right_fit
         else:
-            if right_fit_sum == 0:
-                center_fit[0] = (center_fit[0] + left_fit[0])
-                center_fit[1] = (center_fit[1] + left_fit[1])
-                global_left_fit = left_fit
-                center_fit_last = center_fit
-                #print('offset_left',type(offset_left))
-            else:
-                global_right_fit = right_fit
-                global_left_fit = left_fit
-                center_fit_last = center_fit
+            center_fit[0] = (center_fit[0] + right_fit[0])
+            center_fit[1] = (center_fit[1] + right_fit[1])
+            center_fit_last = center_fit
+            #print('offset_right',type(offset_right))
+    else:
+        if right_fit_sum == 0:
+            center_fit[0] = (center_fit[0] + left_fit[0])
+            center_fit[1] = (center_fit[1] + left_fit[1])
+            center_fit_last = center_fit
+            #print('offset_left',type(offset_left))
+        else:
+            center_fit_last = center_fit
 
     if abs(center_last_sum - center_sum) > 30 and center_last_sum != 0:
         if left_fit_sum == 0 and right_fit_sum == 0:
             center_fit_last = center_fit
-            global_right_fit = right_fit
-            global_left_fit = left_fit
             #print('reset center')
         else:
             center_fit = center_fit_last
             #print('not update')
     else:
         center_fit_last = center_fit
-        global_right_fit = right_fit
-        global_left_fit = left_fit
         #print('update')
 
     #print(np.sum(right_fit - left_fit))
@@ -403,7 +393,7 @@ def fix_laneline(left_fit, right_fit, dstx):
     return left_fit, right_fit
 
 def func_turn(turn,state):
-    
+
     #1: di thang
     if state == 1:
         if turn == 2:
@@ -441,9 +431,8 @@ def func_turn(turn,state):
             return -25
     
     return 0
-    return 0
 
-def errorAngle1(center_line, state):
+def errorAngle(center_line, state):
     global global_left_fit
     global global_right_fit
     global turn
@@ -463,126 +452,54 @@ def errorAngle1(center_line, state):
     print('left: ', leftlane,'\tright: ' , rightlane)
     centerlane = (leftlane + rightlane)/2
     centerlane = (carPosx-centerlane)
+    centerlane_abs = abs(centerlane)
     #print('center\t', (leftlane + (rightlane-leftlane)/2))
-    #print('center', centerlane)
+    print('center', centerlane)
     if turn != 0 and state != 0:
-        print('xu ly sign')
         angle = func_turn(turn,state)
-        if rightlane != 0 and leftlane != 0:
+        if rightlane < 610 and rightlane > 0:
             turn = 0
-            state = 0
+        if leftlane > 0:
+            turn = 0
+
         return angle
     if rightlane == 0 and leftlane == 0:
         angle = 0
-    elif rightlane != 0 and leftlane != 0:
-        if rightlane - leftlane < 590:
-            if centerlane > 0:
-                if centerlane > 10:
-                    if centerlane > 20:
-                        if centerlane > 40:
-                            angle = -12
-                        else:
-                            angle = -8
-                    else:
-                        angle = -5
-                else:
-                    angle = -3
-            else:
-                centerlane_abs = abs(centerlane)
-                if centerlane_abs > 10:
-                    if centerlane_abs > 20:
-                        if centerlane_abs > 40:
-                            angle = 12
-                        else:
-                            angle = 8
-                    else:
-                        angle = 5
-                else:
-                    angle = 3
+    elif rightlane < 610 and rightlane > 0 and leftlane > 0:
+        if rightlane < 550 and leftlane > 50 and rightlane > 0:
+            print('adjust')
+            angle = -0.2049*centerlane - 0.0 
         else:
-            print('Nga tu hoac ba chu T\n')
+            #print('Nga tu hoac ba chu T\n')
             turn = 1
             angle = func_turn(turn,state)
             return angle
     else:
         if leftlane != 0:
-            if leftlane > 220:
-                print('cua phai')
-                if leftlane < 235:
-                    if leftlane > 100:
-                        angle = 7
-                    else:
-                        angle = -7
-                else:
-                    if leftlane < 250:
-                        angle = 20
-                    else:
-                        angle = 25
-            elif leftlane >= 145 and leftlane <= 210:
+            if leftlane > 210 and leftlane < 320:
+                print('turn right')
+                angle = 0.1798*leftlane - 27.71 
+            elif leftlane >= 125 and leftlane <= 210 and (rightlane > 610 or rightlane == 0):
                 print('nga ba phai')
                 turn = 2
                 angle = func_turn(turn,state)
                 return angle
         elif rightlane != 0:
-            if rightlane <= 505 and rightlane >= 400:
+            if rightlane > 330 and rightlane < 400:
+                print('turn left')
+                angle = 0.2099*rightlane - 95.34  
+            elif rightlane <= 505 and rightlane >= 400:
                 print('nga ba trai')
                 turn = 3
                 angle = func_turn(turn,state)
                 print(angle)
                 return angle
-            elif rightlane < 700:
-                print('cua trai')
-                if rightlane > 475:
-                    if rightlane > 100:
-                        angle = -7
-                    else:
-                        angle = 7
-                else:
-                    if rightlane > 400:
-                        angle = -20
-                    else:
-                        angle = -25
-    return angle
-    
-def errorAngle(center_line,left_fit, right_fit):
-    carPosx , carPosy = 305, 150
-    dstx, dsty = find_point_center(center_line)
-    print('dstx, dsty',dstx, dsty)
-    if dstx == carPosx:
-        return 0
-    if dsty == carPosy:
-        if dstx < carPosx:
-            return -30
         else:
-            return 30
-    pi = math.acos(-1.0)
-    dx = dstx - carPosx
-    dy = carPosy - dsty
-    print(dx, dy)
-
-    if dx < 0:
-        angle = (math.atan(-dx / dy) * -180 / pi)
-        if abs(angle) > 4:
-            if abs(angle) > 10:
-                if abs(angle) > 18:
-                    if abs(angle) > 23:
-                        angle = 30
-                angle = angle/9
-            angle = angle/3
-    else:
-        angle = (math.atan(dx / dy) * 180 / pi)
-        if angle > 4:
-            if angle > 10:
-                if angle > 18:
-                    if angle > 23:
-                        angle = 30
-                angle = angle/9
-            angle = angle/3
+            return 0
     return angle
-
 
 def calcul_speed(steer_angle):
-    max_speed = 22
+    max_speed = 23
     abs_steering = abs(steer_angle)
     if abs_steering < 2:
         return max_speed
@@ -597,9 +514,16 @@ def calcul_speed(steer_angle):
     else:
         return max_speed*0.1
 
-def get_speed_angle(center_line,state):
+def speed_control(real_speed,current_speed):
+    if real_speed == 0:
+        return current_speed
+    persent = current_speed/real_speed
+    real_speed *= (1-persent)
+    current_speed -= real_speed
+    return current_speed
 
-    steer_angle =  errorAngle1(center_line, state)
-    print('angle: ',steer_angle)
+def get_speed_angle(center_line,state):
+    steer_angle =  errorAngle(center_line, state)
+    #print('angle: ',steer_angle)
     speed_current = calcul_speed(steer_angle)
     return speed_current, steer_angle

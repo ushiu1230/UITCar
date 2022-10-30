@@ -30,7 +30,7 @@ def detect_color(img):
     x, y = detect_sign(img)
     if (x and y != 0 ):
         b,g,r = img[y,x]
-        print(b,g,r)
+        #print(b,g,r)
         if b == 0 and g == 0 and r == 255:
             #di thang
             state = 1
